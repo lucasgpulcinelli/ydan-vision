@@ -1,0 +1,8 @@
+.*
+!.gitignore
+
+/youtube_data
+/data
+/compressed
+/venv
+__pycache__
