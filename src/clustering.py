@@ -1,22 +1,21 @@
 import cupy as cp
-from cuml.manifold import UMAP, TSNE
 
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 import dask.dataframe
 import numpy as np
+from cuml.cluster import KMeans, HDBSCAN
 
 
 def is_numpy_array(x):
     return isinstance(x, np.ndarray)
 
 
-def get_xy_representation(vectors):
-    result = UMAP(
-        n_components=2, perplexity=6
-    )
-    embeddings = result.fit_transform(vectors)
-    return embeddings
+def clusterize(vectors, min_cluster_size=5):
+    hdbscan = HDBSCAN(min_cluster_size=min_cluster_size)
+    labels = hdbscan.fit_predict(vectors)
+    return labels
+
 
 def main():
     cluster = LocalCUDACluster()
@@ -28,15 +27,11 @@ def main():
 
     vectors = cp.stack([cp.asarray(x) for x in df["vector"]])
 
-    embeddings = get_xy_representation(vectors)
-
-    df["x"] = embeddings[:, 0].get()
-    df["y"] = embeddings[:, 1].get()
-
-    del df["vector"]
+    labels = clusterize(vectors)
+    df["cluster"] = labels.get()
 
     df.to_parquet(
-        "data/result.parquet",
+        "data/clusterized.parquet",
         compression="snappy",
     )
 
