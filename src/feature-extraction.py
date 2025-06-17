@@ -1,3 +1,4 @@
+import cv2
 import dask
 import dask.dataframe
 from dask.distributed import Client
@@ -56,6 +57,29 @@ def extract_features_dinov2(image_path):
     feature_vector = cls_token.squeeze(0).cpu().numpy()
 
     return feature_vector
+
+def extract_features_sift(image_path, vector_length=512):
+    if not isinstance(image_path, str) or not os.path.exists(image_path):
+        return None
+
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return None
+
+    sift = cv2.SIFT_create()
+    keypoints, descriptors = sift.detectAndCompute(img, None)
+
+    if descriptors is None or len(descriptors) == 0:
+        return None
+
+    feature_vector = descriptors.mean(axis=0)
+
+    if feature_vector.shape[0] < vector_length:
+        feature_vector = np.pad(feature_vector, (0, vector_length - feature_vector.shape[0]))
+    else:
+        feature_vector = feature_vector[:vector_length]
+
+    return feature_vector.astype(np.float32)
     
 
 if __name__ == "__main__":

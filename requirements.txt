@@ -2,3 +2,10 @@ dask[complete]
 dask-ml
 dask-cudf-cu12
 cuml-cu12
+opencv-contrib-python
+numpy
+pyarrow
+pillow
+transformers
+torch
+tqdm
