@@ -22,6 +22,7 @@ def main():
     client = Client(cluster)
 
     df = dask.dataframe.read_parquet("data/clusterized.parquet")
+    df.repartition(npartitions=100)
 
     df = df[df["vector"].apply(is_numpy_array, meta=("vector", "bool"))].compute()
 
