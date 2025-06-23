@@ -80,7 +80,31 @@ def extract_features_sift(image_path, vector_length=512):
         feature_vector = feature_vector[:vector_length]
 
     return feature_vector.astype(np.float32)
-    
+
+def extract_features_orb(image_path, vector_length=512):
+    if not isinstance(image_path, str) or not os.path.exists(image_path):
+        return None
+
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return None
+
+    orb = cv2.ORB_create()
+    keypoints, descriptors = orb.detectAndCompute(img, None)
+
+    if descriptors is None or len(descriptors) == 0:
+        return None
+
+    descriptors = descriptors.astype(np.float32)  # ORB retorna uint8
+
+    feature_vector = descriptors.mean(axis=0)
+
+    if feature_vector.shape[0] < vector_length:
+        feature_vector = np.pad(feature_vector, (0, vector_length - feature_vector.shape[0]))
+    else:
+        feature_vector = feature_vector[:vector_length]
+
+    return feature_vector.astype(np.float32)
 
 if __name__ == "__main__":
 
