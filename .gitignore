@@ -6,3 +6,5 @@
 /compressed
 /venv
 __pycache__
+*.png
+*.parquet
