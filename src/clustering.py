@@ -1,21 +1,27 @@
+import cupy as cp
+
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+import dask.dataframe
+import numpy as np
+from cuml.cluster import KMeans, HDBSCAN
+from cuml.decomposition import PCA
+
 import sys
 
-import matplotlib.pyplot as plt
+import cupy as cp
+from cuml.manifold import UMAP, TSNE
+
+from dask_cuda import LocalCUDACluster
+from dask.distributed import Client
+import dask.dataframe
 import numpy as np
 import seaborn as sns
-
-import dask.dataframe
-from dask.distributed import Client
-from dask_cuda import LocalCUDACluster
-
-import cupy as cp
-from cuml.decomposition import PCA
-from cuml.cluster import HDBSCAN, KMeans
-from cuml.manifold import TSNE, UMAP
+import matplotlib.pyplot as plt
 
 
 def is_numpy_array(x):
-    return isinstance(x, np.ndarray)
+    return isinstance(x, np.ndarray) and x.shape[0] == 848
 
 
 def get_xy_representation(vectors, **kwargs):
@@ -23,18 +29,7 @@ def get_xy_representation(vectors, **kwargs):
     embeddings = result.fit_transform(vectors)
     return embeddings
 
-
-def gen_visualization(
-    vectors,
-    clusters,
-    prepend,
-    perplexity,
-    n_neighbors,
-    late_exaggeration,
-    learning_rate,
-    metric,
-    init,
-):
+def gen_visualization(vectors, df, prepend, perplexity, n_neighbors, late_exaggeration, learning_rate, metric, init):
     embeddings = get_xy_representation(
         vectors,
         n_components=2,
@@ -51,6 +46,8 @@ def gen_visualization(
     x = embeddings[:, 0].get()
     y = embeddings[:, 1].get()
 
+    clusters = df["cluster"]
+
     ax = sns.scatterplot(
         x=x[clusters == -1],
         y=y[clusters == -1],
@@ -60,6 +57,7 @@ def gen_visualization(
         edgecolor=None,
         linewidth=0,
     )
+
 
     ax = sns.scatterplot(
         x=x[clusters != -1],
@@ -78,12 +76,15 @@ def gen_visualization(
         dpi=300,
     )
 
+    df["x"] = x
+    df["y"] = y
+
     plt.clf()
 
 
-def clusterize(vectors, min_cluster_size, min_samples):
-    clusterizer = HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples)
-    labels = clusterizer.fit_predict(vectors)
+def clusterize(vectors, min_cluster_size, min_samples, cluster_selection_epsilon):
+    hdbscan = HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, cluster_selection_epsilon=cluster_selection_epsilon)
+    labels = hdbscan.fit_predict(vectors)
     return labels
 
 
@@ -98,6 +99,7 @@ def main():
     pca_size = int(sys.argv[1])
     min_cluster_size = int(sys.argv[2])
     min_samples = int(sys.argv[3])
+    cluster_selection_epsilon = float(sys.argv[4])
 
     vectors = cp.stack([cp.asarray(x) for x in df["vector"]])
     vectors = (vectors - cp.mean(vectors, axis=0)) / cp.std(vectors, axis=0)
@@ -109,31 +111,24 @@ def main():
 
         df["vector"] = vectors.tolist()
 
-    print(f"clustering {pca_size=} {min_cluster_size=} {min_samples=}")
-    labels = clusterize(vectors, min_cluster_size, min_samples)
+    print(f"clustering {pca_size=} {min_cluster_size=} {min_samples=}, {cluster_selection_epsilon=}")
+    labels = clusterize(vectors, min_cluster_size, min_samples, cluster_selection_epsilon)
 
     df["cluster"] = labels.get()
 
     perplexities = [5, 50]
     late_exaggerations = [2.5, 1.5]
-    learning_rate = 1000
+    learning_rate = 10000
     metric = "euclidean"
     init = "pca"
 
     for perplexity, late_exaggeration in zip(perplexities, late_exaggerations):
         n_neighbors = 3 * perplexity
-        print(f"Processing {perplexity=}, {late_exaggeration=}")
-        gen_visualization(
-            vectors,
-            df["cluster"],
-            f"{pca_size if pca_size > 0 else 'orig'}_{min_cluster_size}_{min_samples}",
-            perplexity,
-            n_neighbors,
-            late_exaggeration,
-            learning_rate,
-            metric,
-            init,
+        print(
+            f"Processing {perplexity=}, "
+            f"{late_exaggeration=}"
         )
+        gen_visualization(vectors, df, f"{pca_size if pca_size > 0 else 'orig'}_{min_cluster_size}_{min_samples}_{cluster_selection_epsilon}", perplexity, n_neighbors, late_exaggeration, learning_rate, metric, init)
 
     del df["vector"]
 
