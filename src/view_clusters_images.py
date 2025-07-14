@@ -6,9 +6,9 @@ from PIL import Image
 
 def load_dataframes():
     """Loads the Parquet files and returns a dictionary of DataFrames."""
-    df_hdbscan_1 = pd.read_parquet('./classic_hdbscan_50.parquet')
-    df_hdbscan_2 = pd.read_parquet('./hdbscan_100.parquet')
-    df_kmeans = pd.read_parquet('./kmeans_100.parquet')
+    df_hdbscan_1 = pd.read_parquet('data/classic_hdbscan_50.parquet')
+    df_hdbscan_2 = pd.read_parquet('data/hdbscan_100.parquet')
+    df_kmeans = pd.read_parquet('data/kmeans_100.parquet')
 
     # print(df_hdbscan_1.head())
     # print(df_hdbscan_2.head())
